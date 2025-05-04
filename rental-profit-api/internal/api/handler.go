@@ -98,6 +98,12 @@ func validateAndMapBookings(requestItems []types.BookingRequest) ([]booking.Book
 		if item.Nights <= 0 {
 			return nil, fmt.Errorf("%w: nights must be positive on item %d", ErrValidation, i)
 		}
+		if item.SellingRate <= 0 {
+			return nil, fmt.Errorf("%w: selling rate must be positive on item %d", ErrValidation, i)
+		}
+		if item.Margin <= 0 {
+			return nil, fmt.Errorf("%w: margin must be positive on item %d", ErrValidation, i)
+		}
 		domainBookings = append(domainBookings, booking.Booking{
 			RequestID:   item.RequestID,
 			Checkin:     checkinDate,
