@@ -1,0 +1,27 @@
+# Git files
+.git
+.gitignore
+
+# Docker files
+Dockerfile
+.dockerignore
+
+# Go build outputs (if built locally)
+maximize-profit-api
+server
+
+# IDE/Editor specific files
+.vscode/
+.idea/
+*.iml
+
+# OS specific files
+.DS_Store
+Thumbs.db
+
+# Test coverage files
+coverage.*
+*.out
+
+# Go module cache (shouldn't be copied anyway, but good practice)
+vendor/

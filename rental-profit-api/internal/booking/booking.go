@@ -15,8 +15,8 @@ type Booking struct {
 	Nights      int
 	SellingRate float64
 	Margin      float64
-	Checkout time.Time
-	Profit   float64
+	Checkout 	time.Time
+	Profit   	float64
 }
 
 func CalculateCheckout(checkin time.Time, nights int) time.Time {

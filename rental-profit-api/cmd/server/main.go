@@ -1,18 +1,39 @@
 package main
 
 import (
-	"log"
+	"log/slog"
 	"net/http"
+	"os"
+
+	"rental-profit-api/internal/api"
 )
 
 func main() {
 
-	log.Println("Starting rental profit maximization server on port 8080")
 
-	err := http.ListenAndServe(":8080", nil)
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+		Level:     slog.LevelInfo,
+		AddSource: true,
+	}))
+	slog.SetDefault(logger) 
+
+	slog.Info("Initializing server...")
+
+	// --- HTTP Route Registration ---
+	http.HandleFunc("/maximize", api.MaximizeProfitHandler)
+	slog.Info("Registered handler for endpoint", "path", "/maximize")
+
+	// --- Server Configuration ---
+	port := "8080"
+	addr := ":" + port
+	slog.Info("Server starting", "address", addr)
+
+	// --- Start Server ---
+	err := http.ListenAndServe(addr, nil)
+
+	// --- Error Handling ---
 	if err != nil {
-		log.Fatalf("Server failed to start: %v", err)
+		slog.Error("Server failed to start", "error", err)
+		os.Exit(1)
 	}
-
-	log.Println("Rental profit maximization server started on port 8080")
 }

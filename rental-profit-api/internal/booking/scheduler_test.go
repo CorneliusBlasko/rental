@@ -121,7 +121,7 @@ func TestFindLatestCompatibleBinarySearch(t *testing.T) {
 	}
 }
 
-func TestFindMaxProfitSchedule(t *testing.T) {
+func TestFindMaxProfit(t *testing.T) {
 	bookingSet1 := []Booking{
 		newTestBooking(t, "B1", "2024-01-01", 4, 100, 10),
 		newTestBooking(t, "B2", "2024-01-06", 2, 150, 20), 
