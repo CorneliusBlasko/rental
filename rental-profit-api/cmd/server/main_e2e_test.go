@@ -26,6 +26,7 @@ func startTestServer(t *testing.T) *testServer {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/maximize", api.MaximizeProfitHandler)
+	mux.HandleFunc("/stats", api.StatsHandler)
 	server := httptest.NewServer(mux)
 
 	return &testServer{server}
@@ -43,6 +44,27 @@ func TestMain(m *testing.M) {
 	os.Exit(exitCode)
 }
 
+func newHandlerTestRequest(t *testing.T, method, path string, body interface{}) *http.Request {
+	t.Helper()
+	var reqBody *bytes.Buffer
+	if body != nil {
+		b, err := json.Marshal(body)
+		if err != nil {
+			t.Fatalf("Failed to marshal request body: %v", err)
+		}
+		reqBody = bytes.NewBuffer(b)
+	} else {
+		reqBody = bytes.NewBuffer([]byte{})
+	}
+
+	req, err := http.NewRequest(method, path, reqBody)
+	if err != nil {
+		t.Fatalf("Failed to create request: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	return req
+}
+
 // --- E2E Test Cases for /maximize ---
 
 func TestMaximizeE2E(t *testing.T) {
@@ -52,6 +74,7 @@ func TestMaximizeE2E(t *testing.T) {
 	// --- Define Test Scenarios ---
 	testCases := []struct {
 		name           			string
+		requestMethod  			string	
 		payload        			interface{} 
 		expectedStatus 			int
 		expectedResponse 		*types.MaximizeResponse
@@ -130,23 +153,9 @@ func TestMaximizeE2E(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
-			var reqBodyReader io.Reader
-			if payloadStr, ok := testCase.payload.(string); ok {
-				reqBodyReader = bytes.NewBufferString(payloadStr)
-			} else {
-				jsonBytes, err := json.Marshal(testCase.payload)
-				if err != nil {
-					t.Fatalf("Failed to marshal test payload: %v", err)
-				}
-				reqBodyReader = bytes.NewBuffer(jsonBytes)
-			}
+			req := newHandlerTestRequest(t, testCase.requestMethod, server.URL+"/maximize", testCase.payload)
 
-			req, err := http.NewRequest(http.MethodPost, server.URL+"/maximize", reqBodyReader)
-			if err != nil {
-				t.Fatalf("Failed to create request: %v", err)
-			}
-			req.Header.Set("Content-Type", "application/json")
-
+			// Send request
 			resp, err := httpClient.Do(req)
 			if err != nil {
 				t.Fatalf("Failed to send request: %v", err)
@@ -194,6 +203,142 @@ func TestMaximizeE2E(t *testing.T) {
                          t.Fatalf("Failed to unmarshal error response body: %v. Body: %s. Does not contain expected message: %q", err, string(bodyContent), testCase.expectedErrMsgContains)
                      }
 				} else if !strings.Contains(actualError.Message, testCase.expectedErrMsgContains) {
+					t.Errorf("Expected error message containing %q, got %q", testCase.expectedErrMsgContains, actualError.Message)
+				}
+			}
+		})
+	}
+}
+
+func TestStatsHandler(t *testing.T) {
+	server := startTestServer(t)
+	defer server.Close()
+
+	// --- Define Test Scenarios ---
+	testCases := []struct {
+		name           string
+		requestMethod  string
+		payload        interface{}
+		expectedStatus int
+		expectedResponse *types.StatsResponse
+		expectedErrMsgContains string
+	}{
+		{
+			name:           "Method Not Allowed (GET)",
+			requestMethod:  http.MethodGet,
+			payload:        nil,
+			expectedStatus: http.StatusMethodNotAllowed,
+			expectedErrMsgContains: "Method Not Allowed",
+		},
+		{
+			name:           "Invalid JSON Body",
+			requestMethod:  http.MethodPost,
+			payload:        `[{"bad json":}]`,
+			expectedStatus: http.StatusBadRequest,
+			expectedErrMsgContains: "Invalid JSON format",
+		},
+		{
+			name:           "Validation Error (Missing Nights)",
+			requestMethod:  http.MethodPost,
+			payload:        []types.BookingRequest{{RequestID: "V1", Checkin: "2024-01-01", SellingRate: 100, Margin: 10}}, 
+			expectedStatus: http.StatusBadRequest,
+			expectedErrMsgContains: "nights must be positive",
+		},
+		{
+			name:           "Validation Error (Multiple Errors)",
+			requestMethod:  http.MethodPost,
+			payload: []types.BookingRequest{
+				{RequestID: "E1", Checkin: "bad-date", Nights: 0, SellingRate: 100, Margin: 10},
+				{RequestID: "", Checkin: "2024-01-01", Nights: 1, SellingRate: -5, Margin: -5},
+			},
+			expectedStatus: http.StatusBadRequest,
+			expectedErrMsgContains: "check_in format error on item 0",
+		},
+		{
+			name:           "Empty Input List Success",
+			requestMethod:  http.MethodPost,
+			payload:        []types.BookingRequest{},
+			expectedStatus: http.StatusOK,
+			expectedResponse: &types.StatsResponse{ 
+				AvgProfitPerNight: 0.00, MinProfitPerNight: 0.00, MaxProfitPerNight: 0.00,
+			},
+		},
+		{
+			name:          "Successful Stats Calculation",
+			requestMethod: http.MethodPost,
+			payload: []types.BookingRequest{
+				{RequestID: "S1", Checkin: "2024-01-01", Nights: 4, SellingRate: 100, Margin: 10}, 
+				{RequestID: "S2", Checkin: "2024-01-06", Nights: 2, SellingRate: 150, Margin: 20}, 
+				{RequestID: "S3", Checkin: "2024-01-10", Nights: 5, SellingRate: 50, Margin: 10}, 
+			},
+			expectedStatus: http.StatusOK,
+			expectedResponse: &types.StatsResponse{
+				AvgProfitPerNight: 6.17,
+				MinProfitPerNight: 1.00,
+				MaxProfitPerNight: 15.00,
+			},
+		},
+		{
+			name:          "Stats Calculation With One Item",
+			requestMethod: http.MethodPost,
+			payload: []types.BookingRequest{
+				{RequestID: "ONE", Checkin: "2024-03-01", Nights: 3, SellingRate: 120, Margin: 25}, 
+			},
+			expectedStatus: http.StatusOK,
+			expectedResponse: &types.StatsResponse{
+				AvgProfitPerNight: 10.00, MinProfitPerNight: 10.00, MaxProfitPerNight: 10.00,
+			},
+		},
+	}
+
+	// --- Execute Scenarios ---
+	httpClient := server.Client()
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			req := newHandlerTestRequest(t, testCase.requestMethod, server.URL+"/stats", testCase.payload) 
+
+			// Send request
+			resp, err := httpClient.Do(req)
+			if err != nil {
+				t.Fatalf("Failed to send request: %v", err)
+			}
+			defer resp.Body.Close()
+
+			// --- Assertions ---
+			if resp.StatusCode != testCase.expectedStatus {
+				bodyBytes, _ := io.ReadAll(resp.Body)
+				t.Fatalf("Expected status code %d, got %d. Body: %s", testCase.expectedStatus, resp.StatusCode, string(bodyBytes))
+			}
+
+			// 2. Read Body
+			bodyBytes, err := io.ReadAll(resp.Body)
+			if err != nil {
+				t.Fatalf("Failed to read response body: %v", err)
+			}
+			bodyString := string(bodyBytes)
+
+			// 3. Body Content
+			if testCase.expectedStatus == http.StatusOK && testCase.expectedResponse != nil {
+				var actualResponse types.StatsResponse
+				err = json.Unmarshal(bodyBytes, &actualResponse)
+				if err != nil {
+					t.Fatalf("Failed to unmarshal success response body: %v. Body: %s", err, bodyString)
+				}
+
+				const tolerance = 1e-2 
+				assertFloatEquals(t, testCase.expectedResponse.AvgProfitPerNight, actualResponse.AvgProfitPerNight, tolerance, "AvgProfitPerNight")
+				assertFloatEquals(t, testCase.expectedResponse.MinProfitPerNight, actualResponse.MinProfitPerNight, tolerance, "MinProfitPerNight")
+				assertFloatEquals(t, testCase.expectedResponse.MaxProfitPerNight, actualResponse.MaxProfitPerNight, tolerance, "MaxProfitPerNight")
+
+			} else if testCase.expectedStatus != http.StatusOK && testCase.expectedErrMsgContains != "" {
+				var actualError types.ErrorResponse
+				err = json.Unmarshal(bodyBytes, &actualError)
+				if err != nil { 
+					if !strings.Contains(bodyString, testCase.expectedErrMsgContains) {
+						t.Errorf("Expected error response containing %q, but unmarshal failed and raw body %q did not contain it", testCase.expectedErrMsgContains, bodyString)
+					}
+				} else if !strings.Contains(actualError.Message, testCase.expectedErrMsgContains) { 
 					t.Errorf("Expected error message containing %q, got %q", testCase.expectedErrMsgContains, actualError.Message)
 				}
 			}

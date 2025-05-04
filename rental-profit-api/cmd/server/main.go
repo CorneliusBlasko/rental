@@ -23,6 +23,9 @@ func main() {
 	http.HandleFunc("/maximize", api.MaximizeProfitHandler)
 	slog.Info("Registered handler for endpoint", "path", "/maximize")
 
+	http.HandleFunc("/stats", api.StatsHandler)
+	slog.Info("Registered handler for endpoint", "path", "/stats")
+
 	// --- Server Configuration ---
 	port := "8080"
 	addr := ":" + port
