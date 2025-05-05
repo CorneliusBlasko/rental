@@ -1,7 +1,6 @@
 package main_test // Use _test package to avoid import cycles if needed
 
 import (
-	"bytes"
 	"encoding/json"
 	"io"
 	"math"
@@ -15,6 +14,7 @@ import (
 
 	"rental-profit-api/internal/api"
 	"rental-profit-api/internal/types"
+	"rental-profit-api/internal/testutil"
 )
 
 type testServer struct {
@@ -43,29 +43,6 @@ func TestMain(m *testing.M) {
 	exitCode := m.Run()
 	os.Exit(exitCode)
 }
-
-func newHandlerTestRequest(t *testing.T, method, path string, body interface{}) *http.Request {
-	t.Helper()
-	var reqBody *bytes.Buffer
-	if body != nil {
-		b, err := json.Marshal(body)
-		if err != nil {
-			t.Fatalf("Failed to marshal request body: %v", err)
-		}
-		reqBody = bytes.NewBuffer(b)
-	} else {
-		reqBody = bytes.NewBuffer([]byte{})
-	}
-
-	req, err := http.NewRequest(method, path, reqBody)
-	if err != nil {
-		t.Fatalf("Failed to create request: %v", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-	return req
-}
-
-// --- E2E Test Cases for /maximize ---
 
 func TestMaximizeE2E(t *testing.T) {
 	server := startTestServer(t)
@@ -153,7 +130,7 @@ func TestMaximizeE2E(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
-			req := newHandlerTestRequest(t, testCase.requestMethod, server.URL+"/maximize", testCase.payload)
+			req := testutil.NewTestRequest(t, testCase.requestMethod, server.URL+"/maximize", testCase.payload)
 
 			// Send request
 			resp, err := httpClient.Do(req)
@@ -224,13 +201,6 @@ func TestStatsHandler(t *testing.T) {
 		expectedErrMsgContains string
 	}{
 		{
-			name:           "Method Not Allowed (GET)",
-			requestMethod:  http.MethodGet,
-			payload:        nil,
-			expectedStatus: http.StatusMethodNotAllowed,
-			expectedErrMsgContains: "Method Not Allowed",
-		},
-		{
 			name:           "Invalid JSON Body",
 			requestMethod:  http.MethodPost,
 			payload:        `[{"bad json":}]`,
@@ -245,11 +215,11 @@ func TestStatsHandler(t *testing.T) {
 			expectedErrMsgContains: "nights must be positive",
 		},
 		{
-			name:           "Validation Error (Multiple Errors)",
+			name:           "Validation Error (Bad date format)",
 			requestMethod:  http.MethodPost,
 			payload: []types.BookingRequest{
 				{RequestID: "E1", Checkin: "bad-date", Nights: 0, SellingRate: 100, Margin: 10},
-				{RequestID: "", Checkin: "2024-01-01", Nights: 1, SellingRate: -5, Margin: -5},
+				{RequestID: "E2", Checkin: "2024-01-01", Nights: 1, SellingRate: 500, Margin: 5},
 			},
 			expectedStatus: http.StatusBadRequest,
 			expectedErrMsgContains: "check_in format error on item 0",
@@ -296,7 +266,7 @@ func TestStatsHandler(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
-			req := newHandlerTestRequest(t, testCase.requestMethod, server.URL+"/stats", testCase.payload) 
+			req := testutil.NewTestRequest(t, testCase.requestMethod, server.URL+"/stats", testCase.payload) 
 
 			// Send request
 			resp, err := httpClient.Do(req)

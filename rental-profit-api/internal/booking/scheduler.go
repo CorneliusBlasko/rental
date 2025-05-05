@@ -90,7 +90,7 @@ func FindMaxProfit(inputBookings []Booking) ScheduleResult {
 	// 6.- Reconstruct the optimal schedule by backtracking through DP decisions
 	optimalSchedule := []Booking{}
 	i := bookingsLength - 1
-	currentExpectedProfit := maxProfit // Start from the end result
+	currentExpectedProfit := maxProfit 
 
 	// Tolerance for float comparison
 	const tolerance = 1e-9

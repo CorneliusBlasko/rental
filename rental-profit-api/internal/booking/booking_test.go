@@ -25,7 +25,7 @@ func assertFloatEquals(t *testing.T, expected, actual, tolerance float64, msg st
 }
 
 func TestCalculateCheckout(t *testing.T) {
-	tests := []struct {
+	testCases := []struct {
 		name    string
 		checkin time.Time
 		nights  int
@@ -36,11 +36,11 @@ func TestCalculateCheckout(t *testing.T) {
 		{"Across month", parseTestDate(t, "2024-01-30"), 3, parseTestDate(t, "2024-02-02")},
 		{"Across year", parseTestDate(t, "2024-12-30"), 3, parseTestDate(t, "2025-01-02")},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := CalculateCheckout(tt.checkin, tt.nights)
-			if !got.Equal(tt.want) {
-				t.Errorf("CalculateCheckout() = %v, want %v", got, tt.want)
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			got := CalculateCheckout(testCase.checkin, testCase.nights)
+			if !got.Equal(testCase.want) {
+				t.Errorf("CalculateCheckout() = %v, want %v", got, testCase.want)
 			}
 		})
 	}
@@ -48,7 +48,7 @@ func TestCalculateCheckout(t *testing.T) {
 
 func TestCalculateProfit(t *testing.T) {
 	const tolerance = 1e-9
-	tests := []struct {
+	testCases := []struct {
 		name        string
 		sellingRate float64
 		margin      float64
@@ -58,17 +58,17 @@ func TestCalculateProfit(t *testing.T) {
 		{"Normal case", 100.0, 20.0, 5, 20.0}, 
 		{"Fractional margin", 123.45, 15.5, 2, 19.13475},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := CalculateProfit(tt.sellingRate, tt.margin, tt.nights)
-			assertFloatEquals(t, tt.want, got, tolerance, "CalculateProfit()")
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			got := CalculateProfit(testCase.sellingRate, testCase.margin, testCase.nights)
+			assertFloatEquals(t, testCase.want, got, tolerance, "CalculateProfit()")
 		})
 	}
 }
 
 func TestCalculateProfitPerNightDirect(t *testing.T) {
 	const tolerance = 1e-9
-	tests := []struct {
+	testCases := []struct {
 		name        string
 		sellingRate float64
 		margin      float64
@@ -79,17 +79,17 @@ func TestCalculateProfitPerNightDirect(t *testing.T) {
 		{"One night", 100.0, 20.0, 1, 20.0}, 
 		{"Fractional result", 150.0, 15.0, 2, 11.25},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := CalculateProfitPerNight(tt.sellingRate, tt.margin, tt.nights)
-			assertFloatEquals(t, tt.want, got, tolerance, "CalculateProfitPerNightDirect()")
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			got := CalculateProfitPerNight(testCase.sellingRate, testCase.margin, testCase.nights)
+			assertFloatEquals(t, testCase.want, got, tolerance, "CalculateProfitPerNightDirect()")
 		})
 	}
 }
 
 func TestCalculateOverallStats(t *testing.T) {
 	const tolerance = 1e-9
-	tests := []struct {
+	testCases := []struct {
 		name     string
 		bookings []Booking
 		want     types.StatsResponse
@@ -112,13 +112,13 @@ func TestCalculateOverallStats(t *testing.T) {
 			want: types.StatsResponse{AvgProfitPerNight: 6.25, MinProfitPerNight: 5.00, MaxProfitPerNight: 10.00},
 		},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := CalculateOverallStats(tt.bookings)
-			// Compare floats with tolerance
-			assertFloatEquals(t, tt.want.AvgProfitPerNight, got.AvgProfitPerNight, tolerance, "AvgProfitPerNight mismatch")
-			assertFloatEquals(t, tt.want.MinProfitPerNight, got.MinProfitPerNight, tolerance, "MinProfitPerNight mismatch")
-			assertFloatEquals(t, tt.want.MaxProfitPerNight, got.MaxProfitPerNight, tolerance, "MaxProfitPerNight mismatch")
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			got := CalculateOverallStats(testCase.bookings)
+			
+			assertFloatEquals(t, testCase.want.AvgProfitPerNight, got.AvgProfitPerNight, tolerance, "AvgProfitPerNight mismatch")
+			assertFloatEquals(t, testCase.want.MinProfitPerNight, got.MinProfitPerNight, tolerance, "MinProfitPerNight mismatch")
+			assertFloatEquals(t, testCase.want.MaxProfitPerNight, got.MaxProfitPerNight, tolerance, "MaxProfitPerNight mismatch")
 		})
 	}
 }

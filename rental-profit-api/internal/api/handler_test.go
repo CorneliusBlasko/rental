@@ -1,40 +1,19 @@
 package api
 
 import (
-	"bytes"
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
 	"rental-profit-api/internal/types"
+	"rental-profit-api/internal/testutil"
 )
 
-
-func newHandlerTestRequest(t *testing.T, method, path string, body interface{}) *http.Request {
-	t.Helper()
-	var reqBody *bytes.Buffer
-	if body != nil {
-		b, err := json.Marshal(body)
-		if err != nil {
-			t.Fatalf("Failed to marshal request body: %v", err)
-		}
-		reqBody = bytes.NewBuffer(b)
-	} else {
-		reqBody = bytes.NewBuffer([]byte{})
-	}
-
-	req, err := http.NewRequest(method, path, reqBody)
-	if err != nil {
-		t.Fatalf("Failed to create request: %v", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-	return req
-}
-
 func TestMaximizeProfitHandler(t *testing.T) {
-	tests := []struct {
+
+	// --- Define Test Scenarios ---
+	testCases := []struct {
 		name           string
 		requestMethod  string
 		requestBody    interface{}
@@ -81,9 +60,10 @@ func TestMaximizeProfitHandler(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
+	// --- Execute Scenarios ---
+	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			req := newHandlerTestRequest(t, tt.requestMethod, "/maximize", tt.requestBody)
+			req := testutil.NewTestRequest(t, tt.requestMethod, "/maximize", tt.requestBody)
 			recorder := httptest.NewRecorder() 
 
 			MaximizeProfitHandler(recorder, req)
@@ -103,7 +83,9 @@ func TestMaximizeProfitHandler(t *testing.T) {
 }
 
 func TestStatsHandler(t *testing.T) {
-	tests := []struct {
+
+	// --- Define Test Scenarios ---
+	testCases := []struct {
 		name                 string
 		requestMethod        string
 		requestBody          interface{}
@@ -159,9 +141,10 @@ func TestStatsHandler(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
+	// --- Execute Scenarios ---
+	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			req := newHandlerTestRequest(t, tt.requestMethod, "/stats", tt.requestBody)
+			req := testutil.NewTestRequest(t, tt.requestMethod, "/stats", tt.requestBody)
 			recorder := httptest.NewRecorder() 
 
 			StatsHandler(recorder, req)
